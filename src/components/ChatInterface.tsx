@@ -15,17 +15,21 @@ export function ChatInterface({ username, onLogout }: ChatInterfaceProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [isSending, setIsSending] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Fetch initial messages
     useEffect(() => {
         const fetchMessages = async () => {
-            const { data } = await supabase
+            const { data, error: fetchError } = await supabase
                 .from('messages')
                 .select('*')
                 .order('created_at', { ascending: true });
 
-            if (data) {
+            if (fetchError) {
+                console.error('Fetch error:', fetchError);
+                setError(`Error al cargar mensajes: ${fetchError.message}`);
+            } else if (data) {
                 setMessages(data);
             }
         };
@@ -60,16 +64,17 @@ export function ChatInterface({ username, onLogout }: ChatInterfaceProps) {
         if (!newMessage.trim() || isSending) return;
 
         setIsSending(true);
+        setError(null);
         const content = newMessage.trim();
         setNewMessage(""); // Optimistic clear
 
-        const { error } = await supabase
+        const { error: sendError } = await supabase
             .from('messages')
             .insert([{ content, username }]);
 
-        if (error) {
-            console.error('Error sending message:', error);
-            // In a real app, restore the message or show an error toast
+        if (sendError) {
+            console.error('Error sending message:', sendError);
+            setError(`Error al enviar: ${sendError.message}`);
             setNewMessage(content);
         }
 
@@ -141,6 +146,11 @@ export function ChatInterface({ username, onLogout }: ChatInterfaceProps) {
 
             {/* Input Area */}
             <div className="p-4 bg-black border-t border-white/10">
+                {error && (
+                    <div className="max-w-4xl mx-auto mb-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl text-sm animate-in fade-in slide-in-from-top-2">
+                        {error}
+                    </div>
+                )}
                 <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto relative flex items-center gap-2">
                     <input
                         type="text"
